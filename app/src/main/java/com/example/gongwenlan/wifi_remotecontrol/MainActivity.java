@@ -14,6 +14,7 @@ import org.fourthline.cling.model.meta.LocalDevice;
 import org.fourthline.cling.model.meta.RemoteDevice;
 import org.fourthline.cling.registry.Registry;
 import org.fourthline.cling.registry.RegistryListener;
+import org.fourthline.cling.android.AndroidUpnpServiceConfiguration;
 
 public class MainActivity extends AppCompatActivity {
     public static final String EXTRA_MESSAGE = "com.example.myfirstapp.MESSAGE";
@@ -76,7 +77,7 @@ public class MainActivity extends AppCompatActivity {
                 System.out.println("service shutdowned");
             }
         };
-        upnpService = new UpnpServiceImpl(listener);
+        upnpService = new UpnpServiceImpl(new AndroidUpnpServiceConfiguration());
         upnpService.getControlPoint().search(new STAllHeader());
         System.out.println("Waiting for 10 second before shutting down");
         try{
