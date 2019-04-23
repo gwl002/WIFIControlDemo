@@ -3,4 +3,6 @@
     <string name="edit_message">Enter a message</string>
     <string name="button_send">Send</string>
     <string name="deviceDetailsNotYetAvailable">DeviceDetailNotYetAvailable</string>
+    <string name="deviceDetails">Device Details</string>
+    <string name="ok">OK</string>
 </resources>

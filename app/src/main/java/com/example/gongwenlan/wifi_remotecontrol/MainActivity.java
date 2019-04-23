@@ -2,14 +2,17 @@ package com.example.gongwenlan.wifi_remotecontrol;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.net.wifi.aware.PublishConfig;
 import android.os.IBinder;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -32,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private RegistryListener registryListener = new MyRegistryListener();
     private AndroidUpnpService upnpService;
     private ArrayAdapter<DeviceDisplay> listAdapter;
+    private Context mContext;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -64,6 +68,29 @@ public class MainActivity extends AppCompatActivity {
         ListView device_list = (ListView) findViewById(R.id.list_device);
         listAdapter = new ArrayAdapter<>(this,android.R.layout.simple_expandable_list_item_1);
         device_list.setAdapter(listAdapter);
+        mContext = this;
+
+        device_list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                DeviceDisplay deviceDisplay = (DeviceDisplay) parent.getItemAtPosition(position);
+                Log.d("DeviceDetails",deviceDisplay.getDetailsMessage());
+                AlertDialog alertDialog = new AlertDialog.Builder(mContext).create();
+                alertDialog.setTitle(R.string.deviceDetails);
+                alertDialog.setMessage(deviceDisplay.getDetailsMessage());
+                alertDialog.setButton(
+                        DialogInterface.BUTTON_POSITIVE,
+                        getString(R.string.ok),
+                        new DialogInterface.OnClickListener(){
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+
+                            }
+                        }
+                );
+                alertDialog.show();
+            }
+        });
 
         Button btn = (Button) findViewById(R.id.button);
         btn.setOnClickListener(new View.OnClickListener() {
