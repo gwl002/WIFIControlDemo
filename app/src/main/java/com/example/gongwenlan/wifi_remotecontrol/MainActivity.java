@@ -5,8 +5,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.net.wifi.aware.PublishConfig;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -28,6 +31,9 @@ import org.fourthline.cling.registry.DefaultRegistryListener;
 import org.fourthline.cling.registry.Registry;
 import org.fourthline.cling.registry.RegistryListener;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     public static final String EXTRA_MESSAGE = "com.example.myfirstapp.MESSAGE";
@@ -36,6 +42,10 @@ public class MainActivity extends AppCompatActivity {
     private AndroidUpnpService upnpService;
     private ArrayAdapter<DeviceDisplay> listAdapter;
     private Context mContext;
+
+    private Handler handler;
+    private Timer timer;
+    private int progress = 0;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -63,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        SplashScreenActivity.show(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ListView device_list = (ListView) findViewById(R.id.list_device);
@@ -108,6 +119,63 @@ public class MainActivity extends AppCompatActivity {
                 Context.BIND_AUTO_CREATE
         );
         Log.d(TAG,"Activity created");
+
+        handler = new Handler(){
+            @Override
+            public void handleMessage(Message msg){
+                int what = msg.what;
+                if(what<=100){
+                    SplashScreenActivity.setProgressBar(what);
+                }else{
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try{
+                                SplashScreenActivity.hideProgressBar();
+                                Thread.sleep(2000);
+                                SplashScreenActivity.hide(MainActivity.this);
+                            }catch(Exception e) {
+
+                            }
+                        }
+                    }).start();
+
+                }
+            }
+        };
+
+//        new Thread(new Runnable(){
+//
+//            public void run(){
+//                try{
+//                    Log.d("time","计时开始5s");
+//                    Thread.sleep(5000);
+//                    Log.d("time","计时结束");
+//                    handler.sendEmptyMessage(0); //告诉主线程执行任务
+//                }catch(Exception e) {
+//
+//                }
+//            }
+//
+//        }).start();
+
+        timer = new Timer();
+        timer.schedule(new MyTimerTask(),0,500);
+    }
+
+    class MyTimerTask extends TimerTask{
+        @Override
+        public void run(){
+            Log.d("schedule","+++"+progress);
+            if(progress>100){
+                timer.cancel();
+                return;
+            }
+            progress+=10;
+            Message message = new Message();
+            message.what = progress;
+            handler.sendMessage(message);
+        }
     }
 
 
