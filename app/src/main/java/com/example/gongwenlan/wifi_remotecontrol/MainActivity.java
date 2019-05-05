@@ -5,8 +5,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
-import android.net.wifi.aware.PublishConfig;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -20,17 +18,36 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import org.fourthline.cling.android.AndroidUpnpService;
 import org.fourthline.cling.android.AndroidUpnpServiceImpl;
+import org.fourthline.cling.controlpoint.ActionCallback;
+import org.fourthline.cling.controlpoint.ControlPoint;
+import org.fourthline.cling.controlpoint.SubscriptionCallback;
+import org.fourthline.cling.model.action.ActionInvocation;
+import org.fourthline.cling.model.gena.CancelReason;
+import org.fourthline.cling.model.gena.GENASubscription;
+import org.fourthline.cling.model.message.UpnpResponse;
 import org.fourthline.cling.model.meta.Device;
 import org.fourthline.cling.model.meta.LocalDevice;
 import org.fourthline.cling.model.meta.RemoteDevice;
 import org.fourthline.cling.model.meta.Service;
+import org.fourthline.cling.model.types.ServiceId;
+import org.fourthline.cling.model.types.ServiceType;
+import org.fourthline.cling.model.types.UnsignedIntegerFourBytes;
 import org.fourthline.cling.registry.DefaultRegistryListener;
 import org.fourthline.cling.registry.Registry;
 import org.fourthline.cling.registry.RegistryListener;
+import org.fourthline.cling.support.avtransport.callback.GetPositionInfo;
+import org.fourthline.cling.support.avtransport.callback.Play;
+import org.fourthline.cling.support.avtransport.callback.SetAVTransportURI;
+import org.fourthline.cling.support.avtransport.callback.Stop;
+import org.fourthline.cling.support.model.PositionInfo;
+import org.fourthline.cling.support.renderingcontrol.callback.GetVolume;
+import org.fourthline.cling.support.renderingcontrol.callback.SetVolume;
 
+import java.nio.channels.Channel;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -40,8 +57,10 @@ public class MainActivity extends AppCompatActivity {
 
     private RegistryListener registryListener = new MyRegistryListener();
     private AndroidUpnpService upnpService;
+    private ControlPoint cp;
     private ArrayAdapter<DeviceDisplay> listAdapter;
     private Context mContext;
+
 
     private Handler handler;
     private Timer timer;
@@ -51,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             upnpService = (AndroidUpnpService) service;
+            cp = upnpService.getControlPoint();
 
             listAdapter.clear();
 
@@ -59,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
 //                registryListener.deviceAdded(device);
 //            }
             Log.d("sssss","upnp connected");
-            upnpService.getControlPoint().search();
+            cp.search();
         }
 
         @Override
@@ -85,17 +105,24 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 DeviceDisplay deviceDisplay = (DeviceDisplay) parent.getItemAtPosition(position);
+                Device device = deviceDisplay.getDevice();
+                Log.d("xxxxx",device.toString());
+                final Service avtService = device.findService(ServiceType.valueOf("urn:schemas-upnp-org:service:AVTransport:1"));
+                final Service rctrlService = device.findService(ServiceType.valueOf("urn:schemas-upnp-org:service:RenderingControl:1"));
                 Log.d("DeviceDetails",deviceDisplay.getDetailsMessage());
+
                 AlertDialog alertDialog = new AlertDialog.Builder(mContext).create();
                 alertDialog.setTitle(R.string.deviceDetails);
                 alertDialog.setMessage(deviceDisplay.getDetailsMessage());
                 alertDialog.setButton(
                         DialogInterface.BUTTON_POSITIVE,
                         getString(R.string.ok),
-                        new DialogInterface.OnClickListener(){
+                        new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-
+                                Log.d("Alert Dialog", "clicked");
+//                                setVolume(50,rctrlService);
+                                playMusic("http://192.168.2.175:9080/002.mp3",avtService);
                             }
                         }
                 );
@@ -132,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
                         public void run() {
                             try{
                                 SplashScreenActivity.hideProgressBar();
-                                Thread.sleep(2000);
+                                Thread.sleep(1000);
                                 SplashScreenActivity.hide(MainActivity.this);
                             }catch(Exception e) {
 
@@ -143,21 +170,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
-
-//        new Thread(new Runnable(){
-//
-//            public void run(){
-//                try{
-//                    Log.d("time","计时开始5s");
-//                    Thread.sleep(5000);
-//                    Log.d("time","计时结束");
-//                    handler.sendEmptyMessage(0); //告诉主线程执行任务
-//                }catch(Exception e) {
-//
-//                }
-//            }
-//
-//        }).start();
 
         timer = new Timer();
         timer.schedule(new MyTimerTask(),0,500);
@@ -176,6 +188,122 @@ public class MainActivity extends AppCompatActivity {
             message.what = progress;
             handler.sendMessage(message);
         }
+    }
+
+    public void playMusic(final String uri,final Service avtService){
+        if(cp != null){
+            cp.execute(new SubscriptionCallback(avtService,100) {
+                @Override
+                protected void failed(GENASubscription subscription, UpnpResponse responseStatus, Exception exception, String defaultMsg) {
+                    Log.d("sub fail:",defaultMsg);
+                }
+
+                @Override
+                protected void established(GENASubscription subscription) {
+                    Log.d("sub establish:",subscription.toString());
+                }
+
+                @Override
+                protected void ended(GENASubscription subscription, CancelReason reason, UpnpResponse responseStatus) {
+                    Log.d("sub establish:",reason.toString());
+                }
+
+                @Override
+                protected void eventReceived(GENASubscription subscription) {
+                    Log.d("sub recev:",subscription.getCurrentSequence().getValue().toString());
+                }
+
+                @Override
+                protected void eventsMissed(GENASubscription subscription, int numberOfMissedEvents) {
+
+                }
+            });
+
+            cp.execute(new Stop(avtService){
+                @Override
+                public void success(ActionInvocation invocation){
+                    cp.execute(new SetAVTransportURI(avtService,uri,"no meta data") {
+                        @Override
+                        public void failure(ActionInvocation invocation, UpnpResponse operation, String defaultMsg) {
+                            Log.d("play failt:",defaultMsg);
+                            Toast.makeText(mContext,defaultMsg,Toast.LENGTH_LONG);
+                        }
+                        @Override
+                        public void success(ActionInvocation invocation){
+                            Log.d("set success:","success");
+
+                            cp.execute(new Play(avtService) {
+                                @Override
+                                public void failure(ActionInvocation invocation, UpnpResponse operation, String defaultMsg) {
+                                    Toast.makeText(mContext,defaultMsg,Toast.LENGTH_LONG);
+                                }
+                                @Override
+                                public void success(ActionInvocation invocation){
+                                    cp.execute(new GetPositionInfo(avtService){
+                                        @Override
+                                        public void failure(ActionInvocation invocation, UpnpResponse operation, String defaultMsg) {
+                                            Log.d("GetPositionInfo","yyyyyyyyyyyyyyy");
+                                        }
+
+                                        @Override
+                                        public void success(ActionInvocation invocation){
+                                            Log.d("GetPositionInfo","xxxxxxx");
+                                            super.success(invocation);
+                                        }
+
+                                        @Override
+                                        public void received(ActionInvocation invocation, PositionInfo positionInfo) {
+                                            Log.d("GetPositionInfo",positionInfo.toString());
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+
+                @Override
+                public void failure(ActionInvocation invocation, UpnpResponse operation, String defaultMsg){
+
+                }
+            });
+
+        }
+    }
+
+    public void setVolume(final int volumeValue,final Service rctrlService){
+            cp.execute(new GetVolume(rctrlService) {
+                @Override
+                public void received(ActionInvocation actionInvocation, final int currentVolume) {
+                    Log.d("recv getVolume:",currentVolume + "");
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(mContext,"current volume:"+currentVolume,Toast.LENGTH_LONG).show();
+                        }
+                    });
+
+
+                    cp.execute(new SetVolume(rctrlService,volumeValue) {
+                        @Override
+                        public void failure(ActionInvocation invocation, UpnpResponse operation, String defaultMsg) {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(mContext,"调节音量失败",Toast.LENGTH_LONG).show();
+                                }
+                            });
+                        }
+                    });
+
+
+                }
+
+                @Override
+                public void failure(ActionInvocation invocation, UpnpResponse operation, String defaultMsg) {
+                    Log.d("fail getVolume:",defaultMsg);
+                }
+            });
     }
 
 
@@ -246,6 +374,10 @@ public class MainActivity extends AppCompatActivity {
 
         public void deviceAdded(final Device device) {
             Log.d("add device",device.getDisplayString());
+            Log.d("device type",device.getType().getType());
+            if(!device.getType().getType().equals("MediaRenderer")){
+                return;
+            }
             runOnUiThread(new Runnable() {
                 public void run() {
                     DeviceDisplay d = new DeviceDisplay(device);
@@ -268,7 +400,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
-    };
+    }
 
     protected class DeviceDisplay {
 
@@ -288,7 +420,10 @@ public class MainActivity extends AppCompatActivity {
             if (getDevice().isFullyHydrated()) {
                 sb.append(getDevice().getDisplayString());
                 sb.append("\n\n");
+                sb.append(getDevice().getType().getType());
+                sb.append("\n\n");
                 for (Service service : getDevice().getServices()) {
+                    Log.d("serviceType:",service.getServiceType().getType());
                     sb.append(service.getServiceType()).append("\n");
                 }
             } else {

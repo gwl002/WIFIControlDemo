@@ -16,6 +16,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    packagingOptions {
+        exclude 'META-INF/beans.xml'
+    }
 }
 
 dependencies {
@@ -26,6 +29,7 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     implementation group: 'org.fourthline.cling', name: 'cling-core', version: '2.1.1'
+    implementation group: 'org.fourthline.cling', name: 'cling-support', version: '2.1.1'
     implementation 'org.eclipse.jetty:jetty-servlet:8.1.8.v20121106'
     implementation 'org.eclipse.jetty:jetty-client:8.1.8.v20121106'
     implementation 'org.eclipse.jetty:jetty-server:8.1.8.v20121106'
